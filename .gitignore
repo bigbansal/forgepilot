@@ -1,0 +1,59 @@
+# macOS
+.DS_Store
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.eggs/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.env
+.env.*
+
+# Backend logs / local data
+*.log
+*.sqlite3
+*.db
+
+# Node / Angular
+node_modules/
+.angular/
+.nx/
+coverage/
+.npm/
+.pnpm-store/
+
+# Frontend build output
+forgepilot-frontend/dist/
+forgepilot-frontend/.angular/
+
+# Python build output
+forgepilot-backend/dist/
+forgepilot-backend/build/
+
+# Sandbox / runtime temp files
+*.pid
+*.out
+*.err
+
+# Docker overrides / local config
+.docker/

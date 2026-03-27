@@ -1,0 +1,114 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: forgepilot-postgres
+    environment:
+      POSTGRES_DB: forgepilot
+      POSTGRES_USER: forgepilot
+      POSTGRES_PASSWORD: forgepilot_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forgepilot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: forgepilot-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: forgepilot
+      RABBITMQ_DEFAULT_PASS: forgepilot_secret
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: forgepilot-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  sandbox-runtime:
+    build:
+      context: ./opensandbox-runtime
+      dockerfile: Dockerfile
+    image: forgepilot/sandbox-runtime:local
+    container_name: forgepilot-sandbox-runtime
+    command: ["sh", "-lc", "sleep infinity"]
+
+  opensandbox:
+    build:
+      context: ./opensandbox-server
+      dockerfile: Dockerfile
+    container_name: forgepilot-opensandbox
+    depends_on:
+      - sandbox-runtime
+    ports:
+      - "3000:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=3).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./forgepilot-backend
+      dockerfile: Dockerfile
+    container_name: forgepilot-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      opensandbox:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./forgepilot-backend/.env
+    environment:
+      FORGEPILOT_HOST: 0.0.0.0
+      FORGEPILOT_PORT: 8080
+      FORGEPILOT_API_PREFIX: /api/v1
+      FORGEPILOT_DATABASE_URL: postgresql+psycopg://forgepilot:forgepilot_secret@postgres:5432/forgepilot
+      FORGEPILOT_OPENSANDBOX_BASE_URL: http://opensandbox:8080
+      FORGEPILOT_OPENSANDBOX_IMAGE_URI: forgepilot/sandbox-runtime:local
+      FORGEPILOT_OPENSANDBOX_USE_SERVER_PROXY: "true"
+
+  frontend:
+    build:
+      context: ./forgepilot-frontend
+      dockerfile: Dockerfile
+    container_name: forgepilot-frontend
+    depends_on:
+      - backend
+    ports:
+      - "4200:4200"
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
