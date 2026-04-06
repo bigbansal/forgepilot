@@ -10,4 +10,4 @@ type = "docker"
 execd_image = "opensandbox/execd:v1.0.7"
 
 [docker]
-network_mode = "openclaw-rnd_default"
+network_mode = "manch_default"

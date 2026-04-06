@@ -32,7 +32,7 @@ cc = ConnectionConfigSync(
 
 print("\nCreating sandbox...")
 s = SandboxSync.create(
-    image="forgepilot/sandbox-runtime:local",
+    image="manch/sandbox-runtime:local",
     entrypoint=["tail", "-f", "/dev/null"],
     timeout=timedelta(seconds=60),
     ready_timeout=timedelta(seconds=60),

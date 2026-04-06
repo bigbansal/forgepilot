@@ -1,96 +1,136 @@
-# ForgePilot
+# Manch
 
-OpenClaw-like AI engineering platform with stronger governance, explicit approvals, and sandboxed execution.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg)](https://python.org)
+[![Angular 19](https://img.shields.io/badge/Angular-19-DD0031.svg)](https://angular.dev)
 
-## Current Stack
+**Multi-agent AI engineering platform** with governance, explicit approvals, and sandboxed execution.
 
-- Frontend: Angular 19
-- Backend: Python + FastAPI
-- Infra: PostgreSQL, Redis, RabbitMQ
-- Runtime: Alibaba OpenSandbox server + Docker sandbox runtime image
+Manch orchestrates multiple AI coding agents (Gemini CLI, Codex CLI, Claude Code) through a unified interface, running them safely inside Docker sandboxes with policy-based approval workflows.
 
-## What is already scaffolded
+## Key Features
 
-- Multi-agent definitions in `.github/agents`
-- FastAPI backend in `forgepilot-backend`
-- Angular frontend shell in `forgepilot-frontend`
-- Docker compose for full local stack
+- **Multi-Agent Routing** — Send tasks to Gemini CLI, Codex CLI, or Claude Code
+- **Sandboxed Execution** — All agent work runs inside isolated Docker containers via OpenSandbox
+- **Skill System** — Extensible skills with marketplace, custom creation, and agentskills.io-compliant SKILL.md injection
+- **Repo Cloning** — Clone any git repo into a sandbox from the UI or API
+- **Approval Workflow** — Risk-based approval queue for high-risk operations
+- **Real-time Streaming** — Live agent output via WebSocket/SSE
+- **Chat Interface** — Slash commands with command palette
+- **Audit Logging** — Track all significant actions across the platform
 
-## MVP Endpoints
+## Architecture
 
-- `GET /api/v1/health`
-- `POST /api/v1/tasks`
-- `POST /api/v1/tasks/{task_id}/start`
-- `GET /api/v1/tasks`
-- `GET /api/v1/sessions`
-- `GET /api/v1/agents`
-- `GET /api/v1/events/stream`
+```
+Angular 19 UI  ─────►  FastAPI Backend  ─────►  OpenSandbox (Docker)
+(Chat, Repos,          (Orchestrator,            (Gemini CLI,
+ Skills, Dash)          Skills, Agents)           Codex CLI,
+                        Policy, Events)           Claude Code)
+                             │
+                  PostgreSQL / Redis / RabbitMQ
+```
 
-## Run locally (quick start)
+## Quick Start
+
+### Prerequisites
+
+- **Docker Desktop** with Docker Compose v2
+- AI provider key(s): OpenAI, Google Gemini, and/or Anthropic
+
+### Setup
 
 ```bash
+git clone https://github.com/bigbansal/manch.git
+cd manch
+cp manch-backend/.env.example manch-backend/.env
+# Edit .env and add at least one AI provider API key
 ./startup.sh
 ```
 
-Then open:
+### Access
 
-- Frontend: `http://localhost:4200`
-- Backend docs: `http://localhost:8080/docs`
-- RabbitMQ UI: `http://localhost:15672` (user: `forgepilot`, pass: `forgepilot_secret`)
-- OpenSandbox mock: `http://localhost:3000/health`
-- OpenSandbox server: `http://localhost:3000/health`
+| Service        | URL                                 |
+|----------------|-------------------------------------|
+| Frontend       | http://localhost:4401               |
+| Backend API    | http://localhost:8212/docs          |
+| Backend Health | http://localhost:8212/api/v1/health |
+| RabbitMQ UI    | http://localhost:15899              |
+| OpenSandbox    | http://localhost:3201/health        |
+| PostgreSQL     | localhost:5545                      |
 
-To stop all services:
+### Stop
 
 ```bash
 docker compose down
 ```
 
-## Manual run (without Docker)
+## API Endpoints
 
-Backend:
+| Method | Endpoint                    | Description                |
+|--------|-----------------------------|----------------------------|
+| GET    | /api/v1/health              | Health check               |
+| POST   | /api/v1/tasks               | Create a task              |
+| POST   | /api/v1/tasks/{id}/start    | Start task execution       |
+| GET    | /api/v1/tasks               | List tasks                 |
+| GET    | /api/v1/sessions            | List sandbox sessions      |
+| GET    | /api/v1/agents              | List available agents      |
+| GET    | /api/v1/events/stream       | SSE event stream           |
+| GET    | /api/v1/repos               | List repositories          |
+| POST   | /api/v1/repos               | Register a repository      |
+| POST   | /api/v1/repos/{id}/clone    | Clone a registered repo    |
+| POST   | /api/v1/repos/clone         | Quick-clone any git URL    |
+| GET    | /api/v1/skills              | List skills                |
+| POST   | /api/v1/skills/create       | Create a custom skill      |
+
+## Manual Development
+
+**Backend:**
 
 ```bash
-cd forgepilot-backend
+cd manch-backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
-uvicorn forgepilot_backend.main:app --reload --host 0.0.0.0 --port 8080
+uvicorn manch_backend.main:app --reload --host 0.0.0.0 --port 8080
 ```
 
-Frontend:
+**Frontend:**
 
 ```bash
-cd forgepilot-frontend
-npm install
-npm start
+cd manch-frontend
+npm install --legacy-peer-deps
+ng serve --port 4401
 ```
 
-Run a task with runner selection:
+## Runners
 
-```bash
-curl -X POST http://localhost:8080/api/v1/tasks/{task_id}/start \
-	-H "Content-Type: application/json" \
-	-d '{"runner":"gemini-cli"}'
-```
+Manch supports three AI agent runners, all executing inside OpenSandbox:
 
-Supported runner values:
+| Runner      | CLI                        | Provider  |
+|-------------|----------------------------|-----------|
+| gemini-cli  | @google/gemini             | Google    |
+| codex-cli   | @openai/codex              | OpenAI    |
+| claude-code | @anthropic-ai/claude-code  | Anthropic |
 
-- `opensandbox` (default)
-- `gemini-cli`
-- `codex-cli`
+## Tech Stack
 
-Notes:
+| Layer    | Technology                                   |
+|----------|----------------------------------------------|
+| Frontend | Angular 19, Signals, Monaco Editor, xterm.js |
+| Backend  | Python 3.12, FastAPI, SQLAlchemy, Pydantic   |
+| Database | PostgreSQL 16                                |
+| Cache    | Redis 7                                      |
+| Queue    | RabbitMQ 3.13                                |
+| Sandbox  | Alibaba OpenSandbox + Docker runtime         |
 
-- `gemini-cli` and `codex-cli` execute inside the OpenSandbox session.
-- This stack uses Alibaba OpenSandbox server (`opensandbox-server`) with Docker runtime.
-- Sandbox command execution uses image `forgepilot/sandbox-runtime:local` (built from `opensandbox-runtime/Dockerfile`) which includes both CLIs.
-- Configure provider credentials in `forgepilot-backend/.env` (`FORGEPILOT_GEMINI_API_KEY`, `FORGEPILOT_OPENAI_API_KEY`).
+## Contributing
 
-## Next build milestone
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, code style, and PR guidelines.
 
-- Replace in-memory state with PostgreSQL persistence
-- Add Temporal/Celery workflow workers
-- Harden OpenSandbox isolation and command policy enforcement
-- Add SSE live task streaming
-- Add approval queue and policy enforcement API
+## Security
+
+Report vulnerabilities privately. See [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE) — Copyright (c) 2026 bigbansal

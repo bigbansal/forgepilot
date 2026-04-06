@@ -1,0 +1,634 @@
+/* ═══════════════════════════════════════════════════════
+   Chat Thread  –  VS Code Copilot-inspired
+   ═══════════════════════════════════════════════════════ */
+
+:host {
+  display: flex;
+  height: calc(100vh - 40px);
+}
+
+.chat-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--c-bg);
+}
+
+/* ── Conversation sidebar ─────────────────────────────── */
+.conv-list {
+  border-right: 1px solid var(--c-border-muted);
+  display: flex;
+  flex-direction: column;
+  background: var(--c-sidebar);
+  overflow: hidden;
+}
+
+.conv-list-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px 10px 14px;
+  border-bottom: 1px solid var(--c-border-muted);
+  flex-shrink: 0;
+}
+
+.conv-list-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-text);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.btn-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+
+  &:hover {
+    background: rgba(255,255,255,0.07);
+    color: var(--c-text);
+  }
+}
+
+.conv-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.conv-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-align: left;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  min-width: 0;
+
+  &:hover {
+    background: rgba(255,255,255,0.05);
+    color: var(--c-text);
+  }
+
+  &.active {
+    background: rgba(255,255,255,0.08);
+    color: var(--c-text);
+  }
+}
+
+.conv-icon { flex-shrink: 0; opacity: 0.5; }
+
+.conv-pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-text-faint);
+  flex-shrink: 0;
+  margin-left: auto;
+
+  &[data-s="RUNNING"]          { background: var(--c-accent); }
+  &[data-s="COMPLETED"]        { background: var(--c-success); }
+  &[data-s="FAILED"]           { background: var(--c-danger); }
+  &[data-s="WAITING_APPROVAL"] { background: var(--c-warning); }
+}
+
+.conv-title {
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conv-empty {
+  padding: 24px 14px;
+  text-align: center;
+  p { margin: 0; font-size: 11.5px; color: var(--c-text-faint); }
+}
+
+/* ── Thread ──────────────────────────────────────────── */
+.thread {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--c-bg);
+}
+
+.thread-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--c-border-muted);
+  flex-shrink: 0;
+  min-height: 40px;
+}
+
+.thread-hd-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.thread-hd-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copilot-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  svg { display: block; }
+}
+
+.thread-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--c-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Error bar */
+.error-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  background: rgba(248, 81, 73, 0.07);
+  border-bottom: 1px solid rgba(248, 81, 73, 0.18);
+  color: var(--c-danger);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* ── Messages ─────────────────────────────────────────── */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  scroll-behavior: smooth;
+}
+
+/* ── System step rows (like Copilot checkmarks) ─────── */
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 24px;
+  font-size: 12px;
+  color: var(--c-text-muted);
+  user-select: none;
+}
+
+.step-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(63,185,80,0.12);
+  color: var(--c-success, #3fb950);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.step-text {
+  font-size: 12px;
+  color: var(--c-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-time {
+  font-size: 10px;
+  color: var(--c-text-faint);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── Message ─────────────────────────────────────────── */
+.msg {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 24px;
+  gap: 4px;
+
+  & + .msg { padding-top: 4px; }
+}
+
+.msg-sender {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.user-avatar {
+  background: rgba(255,255,255,0.1);
+  color: var(--c-text-muted);
+}
+
+.assistant-avatar {
+  background: transparent;
+  svg { display: block; }
+}
+
+.sender-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.msg-time {
+  font-size: 10.5px;
+  color: var(--c-text-faint);
+  margin-left: auto;
+}
+
+.msg-content {
+  padding-left: 32px;
+}
+
+.msg-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-sans, inherit);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--c-text);
+}
+
+.user-msg .msg-pre {
+  color: var(--c-text);
+}
+
+.assistant-msg {
+  .msg-pre {
+    color: var(--c-text);
+  }
+}
+
+/* ── Empty state ──────────────────────────────────────── */
+.thread-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.hero-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  svg { display: block; }
+}
+
+.hero-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.hero-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--c-text-muted);
+  max-width: 340px;
+  line-height: 1.55;
+}
+
+/* ── Typing row ───────────────────────────────────────── */
+.typing-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+}
+
+/* ── Inline terminal (like Copilot "Run zsh command") ─── */
+.inline-terminal {
+  margin: 4px 24px 8px 56px;
+  border: 1px solid var(--c-border-muted);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--c-elevated);
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 12px;
+  background: transparent;
+  border: none;
+  color: var(--c-text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+
+  &:hover { background: rgba(255,255,255,0.04); }
+}
+
+.terminal-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c-text-faint);
+  flex-shrink: 0;
+
+  &.running {
+    background: var(--c-accent);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(56,139,253,0.6); }
+  60%       { box-shadow: 0 0 0 5px rgba(56,139,253,0); }
+}
+
+.terminal-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--c-text-muted);
+}
+
+.terminal-lines {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--c-text-faint);
+  font-variant-numeric: tabular-nums;
+  background: rgba(255,255,255,0.05);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.chevron {
+  color: var(--c-text-faint);
+  transition: transform 0.18s;
+  flex-shrink: 0;
+  &.open { transform: rotate(180deg); }
+}
+
+.terminal-body {
+  padding: 10px 14px 12px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #1a1a1a;
+  border-top: 1px solid var(--c-border-muted);
+  display: flex;
+  flex-direction: column;
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+}
+
+.log-line {
+  font-family: var(--font-mono, 'Menlo', 'Monaco', monospace);
+  font-size: 12px;
+  color: #d4d4d4;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  padding: 0;
+
+  &:hover { background: rgba(255,255,255,0.04); border-radius: 3px; }
+}
+
+.log-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 13px;
+  background: var(--c-accent);
+  border-radius: 1px;
+  animation: blink 1.1s step-end infinite;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── Composer ─────────────────────────────────────────── */
+.composer {
+  flex-shrink: 0;
+  padding: 0 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--c-bg);
+  position: relative;
+}
+
+/* ── Slash command palette ─────────────────────────────── */
+.cmd-palette {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 16px;
+  right: 16px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border-muted);
+  border-radius: var(--r);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  z-index: 60;
+  animation: palette-in 0.1s ease;
+}
+
+@keyframes palette-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.cmd-palette-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--c-text-muted);
+  background: var(--c-elevated);
+  border-bottom: 1px solid var(--c-border-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cmd-palette-hint {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--c-text-faint);
+  opacity: 0.65;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.cmd-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--c-border-muted);
+  transition: background 0.1s;
+  user-select: none;
+
+  &:last-child { border-bottom: none; }
+  &:hover, &.active { background: rgba(56, 139, 253, 0.1); }
+  &.active .cmd-name { color: var(--c-accent); }
+}
+
+.cmd-name {
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  color: var(--c-accent, #4fc3f7);
+  white-space: nowrap;
+}
+
+.cmd-desc {
+  font-size: 11.5px;
+  color: var(--c-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Composer box (Copilot-style input) ───────────────── */
+.composer-box {
+  background: var(--c-elevated);
+  border: 1px solid var(--c-border-muted);
+  border-radius: 12px;
+  padding: 8px 12px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:focus-within {
+    border-color: rgba(56,139,253,0.5);
+    box-shadow: 0 0 0 2px rgba(56,139,253,0.08);
+  }
+
+  textarea {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--c-text);
+    padding: 0;
+    resize: none;
+    line-height: 1.5;
+    font-size: 13.5px;
+    font-family: inherit;
+    min-height: 22px;
+    max-height: 200px;
+    overflow-y: auto;
+
+    &::placeholder { color: var(--c-text-faint); }
+  }
+}
+
+.composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.composer-selects {
+  display: flex;
+  gap: 4px;
+}
+
+.c-select {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  outline: none;
+  color: var(--c-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 3px 6px;
+  transition: border-color 0.12s, background 0.12s;
+
+  &:hover { background: rgba(255,255,255,0.1); }
+  &:focus { border-color: rgba(56,139,253,0.3); }
+  option { background: var(--c-surface); color: var(--c-text); }
+}
+
+.send-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: var(--c-accent-emphasis);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.15s, background 0.12s, transform 0.1s;
+
+  &:hover:not(:disabled) { background: #1a5cc5; transform: scale(1.04); }
+  &:disabled { opacity: 0.25; cursor: not-allowed; }
+}
+
+.spin { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

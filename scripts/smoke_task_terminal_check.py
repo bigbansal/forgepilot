@@ -9,7 +9,7 @@ BASE_URL = 'http://localhost:8080/api/v1'
 TERMINAL_STATUSES = {'COMPLETED', 'FAILED', 'CANCELLED'}
 
 # Dedicated smoke-test credentials (deterministic so it's idempotent)
-SMOKE_EMAIL = 'smoke@forgepilot.dev'
+SMOKE_EMAIL = 'smoke@manch.dev'
 SMOKE_PASSWORD = 'smoke_pw_12345'
 
 

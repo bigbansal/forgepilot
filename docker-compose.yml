@@ -1,30 +1,30 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: forgepilot-postgres
+    container_name: manch-postgres
     environment:
-      POSTGRES_DB: forgepilot
-      POSTGRES_USER: forgepilot
-      POSTGRES_PASSWORD: forgepilot_secret
+      POSTGRES_DB: manch
+      POSTGRES_USER: manch
+      POSTGRES_PASSWORD: manch_secret
     ports:
-      - "5432:5432"
+      - "${MANCH_DB_PORT:-5545}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U forgepilot"]
+      test: ["CMD-SHELL", "pg_isready -U manch"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    container_name: forgepilot-rabbitmq
+    container_name: manch-rabbitmq
     ports:
       - "5672:5672"
-      - "15672:15672"
+      - "15899:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: forgepilot
-      RABBITMQ_DEFAULT_PASS: forgepilot_secret
+      RABBITMQ_DEFAULT_USER: manch
+      RABBITMQ_DEFAULT_PASS: manch_secret
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -35,7 +35,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: forgepilot-redis
+    container_name: manch-redis
     ports:
       - "6379:6379"
     volumes:
@@ -50,19 +50,19 @@ services:
     build:
       context: ./opensandbox-runtime
       dockerfile: Dockerfile
-    image: forgepilot/sandbox-runtime:local
-    container_name: forgepilot-sandbox-runtime
+    image: manch/sandbox-runtime:local
+    container_name: manch-sandbox-runtime
     command: ["sh", "-lc", "sleep infinity"]
 
   opensandbox:
     build:
       context: ./opensandbox-server
       dockerfile: Dockerfile
-    container_name: forgepilot-opensandbox
+    container_name: manch-opensandbox
     depends_on:
       - sandbox-runtime
     ports:
-      - "3000:8080"
+      - "3201:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
@@ -73,9 +73,9 @@ services:
 
   backend:
     build:
-      context: ./forgepilot-backend
+      context: ./manch-backend
       dockerfile: Dockerfile
-    container_name: forgepilot-backend
+    container_name: manch-backend
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,27 +86,33 @@ services:
       opensandbox:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "8212:8080"
     env_file:
-      - ./forgepilot-backend/.env
+      - ./manch-backend/.env
     environment:
-      FORGEPILOT_HOST: 0.0.0.0
-      FORGEPILOT_PORT: 8080
-      FORGEPILOT_API_PREFIX: /api/v1
-      FORGEPILOT_DATABASE_URL: postgresql+psycopg://forgepilot:forgepilot_secret@postgres:5432/forgepilot
-      FORGEPILOT_OPENSANDBOX_BASE_URL: http://opensandbox:8080
-      FORGEPILOT_OPENSANDBOX_IMAGE_URI: forgepilot/sandbox-runtime:local
-      FORGEPILOT_OPENSANDBOX_USE_SERVER_PROXY: "true"
+      MANCH_HOST: 0.0.0.0
+      MANCH_PORT: 8080
+      MANCH_API_PREFIX: /api/v1
+      MANCH_DATABASE_URL: postgresql+psycopg://manch:manch_secret@postgres:5432/manch
+      MANCH_OPENSANDBOX_BASE_URL: http://opensandbox:8080
+      MANCH_OPENSANDBOX_IMAGE_URI: manch/sandbox-runtime:local
+      MANCH_OPENSANDBOX_USE_SERVER_PROXY: "true"
+    volumes:
+      # Bind-mount host skill directories into the backend container so that
+      # SKILL.md files written by Manch appear in the local CLI skill paths.
+      # Created automatically if they don't exist (Docker creates them as dirs).
+      - ~/.codex/skills:/root/.codex/skills
+      - ~/.gemini/skills:/root/.gemini/skills
 
   frontend:
     build:
-      context: ./forgepilot-frontend
+      context: ./manch-frontend
       dockerfile: Dockerfile
-    container_name: forgepilot-frontend
+    container_name: manch-frontend
     depends_on:
       - backend
     ports:
-      - "4200:4200"
+      - "4401:4200"
 
 volumes:
   postgres_data:

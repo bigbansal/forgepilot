@@ -1,0 +1,208 @@
+<div class="chat-layout">
+
+  <!-- ── Conversation sidebar ─────────────────────── -->
+  <aside class="conv-list">
+    <div class="conv-list-hd">
+      <span class="conv-list-title">Chat</span>
+      <button type="button" class="btn-new" (click)="newChat()" title="New conversation">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      </button>
+    </div>
+
+    <div class="conv-items" *ngIf="conversations().length; else noConvs">
+      <button
+        type="button"
+        class="conv-item"
+        *ngFor="let item of conversations()"
+        (click)="openConversation(item.id)"
+        [class.active]="activeConversation()?.id === item.id">
+        <svg class="conv-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span class="conv-title">{{ item.title }}</span>
+        <span class="conv-pip" [attr.data-s]="item.latestTaskStatus"></span>
+      </button>
+    </div>
+
+    <ng-template #noConvs>
+      <div class="conv-empty">
+        <p>No conversations yet</p>
+      </div>
+    </ng-template>
+  </aside>
+
+  <!-- ── Thread panel ─────────────────────────────── -->
+  <section class="thread">
+
+    <!-- Thread header -->
+    <header class="thread-hd">
+      <div class="thread-hd-left">
+        <span class="copilot-icon">
+          <svg width="16" height="16" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="var(--c-accent-emphasis)"/><text x="16" y="23" font-family="system-ui" font-size="20" font-weight="700" fill="#fff" text-anchor="middle">M</text></svg>
+        </span>
+        <span class="thread-title">{{ activeConversation()?.title || 'Manch' }}</span>
+      </div>
+      <div class="thread-hd-right">
+        <fp-status-badge [label]="streamStatus()" />
+      </div>
+    </header>
+
+    <!-- Error bar -->
+    <div class="error-bar" *ngIf="loadError">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      {{ loadError }}
+    </div>
+
+    <!-- ── Message list ── -->
+    <div class="messages" #messageList *ngIf="hasMessages(); else emptyThread">
+
+      <ng-container *ngFor="let message of activeConversation()?.messages">
+
+        <!-- System pill — inline step indicator (like Copilot's checkmark steps) -->
+        <div *ngIf="message.role === 'system'" class="step-row">
+          <span class="step-icon">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+          <span class="step-text">{{ message.content }}</span>
+          <time class="step-time">{{ message.createdAt | date:'shortTime' }}</time>
+        </div>
+
+        <!-- User message -->
+        <div *ngIf="message.role === 'user'" class="msg user-msg">
+          <div class="msg-sender">
+            <span class="avatar user-avatar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </span>
+            <span class="sender-name">You</span>
+            <time class="msg-time">{{ message.createdAt | date:'shortTime' }}</time>
+          </div>
+          <div class="msg-content">
+            <pre class="msg-pre">{{ message.content }}</pre>
+          </div>
+        </div>
+
+        <!-- Assistant message -->
+        <div *ngIf="message.role === 'assistant'" class="msg assistant-msg">
+          <div class="msg-sender">
+            <span class="avatar assistant-avatar">
+              <svg width="14" height="14" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="var(--c-accent-emphasis)"/><text x="16" y="23" font-family="system-ui" font-size="20" font-weight="700" fill="#fff" text-anchor="middle">M</text></svg>
+            </span>
+            <span class="sender-name">Manch</span>
+            <time class="msg-time">{{ message.createdAt | date:'shortTime' }}</time>
+          </div>
+          <div class="msg-content">
+            <pre class="msg-pre">{{ message.content }}</pre>
+          </div>
+        </div>
+
+      </ng-container>
+
+      <!-- Agent output — inline terminal block (like Copilot's "Run zsh command" section) -->
+      <div class="inline-terminal" *ngIf="activeLogs().length > 0 || activeConversation()?.latestTaskStatus === 'RUNNING'">
+        <button type="button" class="terminal-header" (click)="logsExpanded.set(!logsExpanded())">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <span class="terminal-dot" [class.running]="activeConversation()?.latestTaskStatus === 'RUNNING'"></span>
+          <span class="terminal-label">{{ activeConversation()?.latestTaskStatus === 'RUNNING' ? 'Running…' : 'Output' }}</span>
+          <span class="terminal-lines">{{ activeLogs().length }} lines</span>
+          <svg class="chevron" [class.open]="logsExpanded()" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="terminal-body" *ngIf="logsExpanded()">
+          <div class="log-line" *ngFor="let line of activeLogs()">{{ line }}</div>
+          <span class="log-cursor" *ngIf="activeConversation()?.latestTaskStatus === 'RUNNING'"></span>
+        </div>
+      </div>
+
+    </div>
+
+    <ng-template #emptyThread>
+      <div class="thread-empty">
+        <div class="hero-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="var(--c-accent-emphasis)"/><text x="16" y="23" font-family="system-ui" font-size="20" font-weight="700" fill="#fff" text-anchor="middle">M</text></svg>
+        </div>
+        <p class="hero-title">How can I help?</p>
+        <p class="hero-sub">Describe an engineering task and I'll handle it in the sandbox.</p>
+      </div>
+    </ng-template>
+
+    <!-- Typing indicator -->
+    <div class="typing-row" *ngIf="isSending">
+      <span class="avatar assistant-avatar">
+        <svg width="14" height="14" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="var(--c-accent-emphasis)"/><text x="16" y="23" font-family="system-ui" font-size="20" font-weight="700" fill="#fff" text-anchor="middle">M</text></svg>
+      </span>
+      <fp-typing-indicator />
+    </div>
+
+    <!-- Inline Approval widget -->
+    <fp-inline-approval
+      *ngIf="pendingApproval() as approval"
+      [approvalId]="approval.id"
+      [taskId]="approval.task_id"
+      [riskLevel]="approval.risk_level || 'high'"
+      [reason]="approval.reason || ''"
+      [isResolved]="!!approval.decision"
+      [decision]="approval.decision"
+      (approved)="handleApprove($event)"
+      (rejected)="handleReject($event)"
+    />
+
+    <!-- ── Composer ── -->
+    <footer class="composer">
+      <!-- ── Slash command palette ──────────────── -->
+      <div class="cmd-palette" *ngIf="showCommandMenu() && filteredCommands().length">
+        <div class="cmd-palette-header">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          Commands
+          <span class="cmd-palette-hint">↑↓ navigate &middot; ↵ select &middot; Esc dismiss</span>
+        </div>
+        <div
+          class="cmd-item"
+          *ngFor="let cmd of filteredCommands(); let i = index"
+          [class.active]="commandMenuIndex() === i"
+          (mousedown)="selectCommand(cmd)">
+          <span class="cmd-name">{{ cmd.command }}</span>
+          <span class="cmd-desc">{{ cmd.description }}</span>
+        </div>
+      </div>
+
+      <!-- input area -->
+      <div class="composer-box">
+        <textarea
+          [(ngModel)]="prompt"
+          rows="1"
+          placeholder="Ask Manch… (type / for commands)"
+          (input)="onPromptInput(); autoGrow($event)"
+          (keydown)="onPromptKeydown($event)"
+          (keydown.enter)="onEnterKey($event)">
+        </textarea>
+        <div class="composer-actions">
+          <div class="composer-selects">
+            <select [(ngModel)]="selectedRunner" class="c-select" title="Runner">
+              <option value="opensandbox">OpenSandbox</option>
+              <option value="agent-pipeline">⚡ Agent Pipeline</option>
+              <option value="gemini-cli">Gemini CLI</option>
+              <option value="claude-code">Claude Code</option>
+              <option value="codex-cli">Codex CLI</option>
+            </select>
+            <select [(ngModel)]="selectedRepoId" class="c-select" title="Repository">
+              <option value="">No repo</option>
+              <option *ngFor="let repo of repos()" [value]="repo.id">{{ repo.name }}</option>
+            </select>
+            <select [(ngModel)]="selectedApprovalMode" class="c-select" title="Approval mode">
+              <option value="yolo">Auto</option>
+              <option value="auto_edit">Supervised</option>
+              <option value="plan">Plan only</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            class="send-btn"
+            (click)="send()"
+            [disabled]="isSending || !prompt.trim()"
+            title="Send (Enter)">
+            <svg *ngIf="!isSending" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            <svg *ngIf="isSending" class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M22 12a10 10 0 0 0-10-10"/></svg>
+          </button>
+        </div>
+      </div>
+    </footer>
+
+  </section>
+</div>

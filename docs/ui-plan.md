@@ -1,7 +1,7 @@
-# ForgePilot UI Plan
+# Manch UI Plan
 
 > A well-thought-out plan for migrating the current single-component Angular shell
-> into a production-grade, multi-page UI for the ForgePilot AI engineering platform.
+> into a production-grade, multi-page UI for the Manch AI engineering platform.
 
 ---
 
@@ -144,7 +144,7 @@ src/
 │   │   │   ├── event-feed/            # Scrollable live event list
 │   │   │   ├── terminal-output/       # Monospace stdout/stderr renderer
 │   │   │   ├── chat-bubble/           # Single message bubble (user/assistant/system)
-│   │   │   ├── typing-indicator/      # "ForgePilot is thinking..." animation
+│   │   │   ├── typing-indicator/      # "Manch is thinking..." animation
 │   │   │   ├── inline-approval/       # Approve/reject card rendered inside chat
 │   │   │   ├── inline-code-block/     # Syntax-highlighted code block in messages
 │   │   │   ├── inline-diff-summary/   # Collapsible file diff summary in chat
@@ -293,7 +293,7 @@ src/
   - "Add an API endpoint for..." | "Fix failing tests in..." | "Review the latest changes"
 
 #### Chat Thread (`/chat/:conversationId`)
-- **Purpose**: Full conversational interaction with ForgePilot agents
+- **Purpose**: Full conversational interaction with Manch agents
 - **Layout**: Three-panel — conversation list (left, collapsible) + message thread (center) + task context (right, collapsible)
 - **Center panel — Message Thread**:
   - Scrollable message history with auto-scroll
@@ -307,7 +307,7 @@ src/
     - Plan step progress cards showing what agent is doing
     - File diff summaries (collapsible) when changes are made
   - **System messages**: Centered, muted text for status transitions ("Task started", "Waiting for approval")
-  - **Typing indicator**: "ForgePilot is thinking..." with pulsing animation while task is RUNNING
+  - **Typing indicator**: "Manch is thinking..." with pulsing animation while task is RUNNING
   - **SSE integration**: `task.*`, `sandbox.exec`, `session.*` events render inline as they arrive
 - **Bottom — Message Input**:
   - Multi-line textarea (Shift+Enter for newline, Enter to send)
@@ -491,7 +491,7 @@ src/
 - Supports inline rendering of approval cards, plan step cards, diff summaries
 
 #### `<fp-typing-indicator>`
-- Animated "ForgePilot is thinking..." with three pulsing dots
+- Animated "Manch is thinking..." with three pulsing dots
 - Shows agent name when attribution is available: "Coder is working..."
 
 #### `<fp-inline-approval [approval]="approvalRequest">`
@@ -548,7 +548,7 @@ src/
 #### Shell Layout
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  Toolbar  [ForgePilot]  [🟢 Connected]  [🔔 3]  [👤 User] │
+│  Toolbar  [Manch]  [🟢 Connected]  [🔔 3]  [👤 User] │
 ├──────┬─────────────────────────────────────────────────────┤
 │      │                                          │
 │  S   │                                          │
@@ -853,7 +853,7 @@ For the full UI plan to work, these backend additions are required:
 ## 11. Dependency Installation Plan
 
 ```bash
-cd forgepilot-frontend
+cd manch-frontend
 
 # UI component library
 ng add @angular/material    # Includes CDK, dark theme, typography

@@ -1,6 +1,6 @@
 # Platform Builder Playbook
 
-Use this file as the **meta playbook** when the agent pack is applied to ForgePilot.
+Use this file as the **meta playbook** when the agent pack is applied to Manch.
 
 ## Goal
 Build an OpenClaw-like coding-agent platform with:

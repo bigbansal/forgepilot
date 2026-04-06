@@ -1,6 +1,6 @@
-# ForgePilot Agent Pack
+# Manch Agent Pack
 
-This folder contains the **agent definitions** for ForgePilot.
+This folder contains the **agent definitions** for Manch.
 
 These files are written so they can be reused as:
 - system prompts
@@ -45,7 +45,7 @@ So the right design is:
 
 ## Core platform principles
 
-All agents in ForgePilot must optimize for:
+All agents in Manch must optimize for:
 - isolated execution with OpenSandbox
 - Kafka-backed eventing and auditability
 - Java + Spring Boot orchestration

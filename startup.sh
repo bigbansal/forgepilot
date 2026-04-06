@@ -23,16 +23,28 @@ step() {
   echo -e "${BLUE}==> Step ${step_no}: ${title}${RESET}"
 }
 
-AUTO_KILL_PORTS="${FORGEPILOT_AUTO_KILL_PORTS:-true}"
-KILL_LOCAL_PORT_PROCESSES="${FORGEPILOT_KILL_LOCAL_PORT_PROCESSES:-false}"
+AUTO_KILL_PORTS="${MANCH_AUTO_KILL_PORTS:-true}"
+KILL_LOCAL_PORT_PROCESSES="${MANCH_KILL_LOCAL_PORT_PROCESSES:-false}"
+AUTO_CLEAN_STALE_CONTAINERS="${MANCH_AUTO_CLEAN_STALE_CONTAINERS:-true}"
+PRESERVE_POSTGRES_CONTAINER="${MANCH_PRESERVE_POSTGRES_CONTAINER:-true}"
+DB_PORT="${MANCH_DB_PORT:-5545}"
 REQUIRED_PORTS=(
-  "4200:Frontend"
-  "8080:Backend API"
-  "3000:OpenSandbox"
-  "5432:PostgreSQL"
+  "4401:Frontend"
+  "8212:Backend API"
+  "3201:OpenSandbox"
+  "${DB_PORT}:PostgreSQL"
   "6379:Redis"
   "5672:RabbitMQ AMQP"
-  "15672:RabbitMQ UI"
+  "15899:RabbitMQ UI"
+)
+COMPOSE_CONTAINER_NAMES=(
+  "manch-postgres"
+  "manch-rabbitmq"
+  "manch-redis"
+  "manch-sandbox-runtime"
+  "manch-opensandbox"
+  "manch-backend"
+  "manch-frontend"
 )
 
 port_in_use() {
@@ -88,6 +100,11 @@ check_and_handle_ports() {
     port="${entry%%:*}"
     label="${entry#*:}"
 
+    if [[ "${label}" == "PostgreSQL" && "${PRESERVE_POSTGRES_CONTAINER}" == "true" ]]; then
+      info "Skipping PostgreSQL port conflict auto-cleanup (preserve mode enabled)"
+      continue
+    fi
+
     if port_in_use "$port"; then
       conflicts=1
       warn "Port ${port} (${label}) is already in use"
@@ -99,12 +116,12 @@ check_and_handle_ports() {
         if port_in_use "$port"; then
           error "Port ${port} (${label}) is still in use after Docker cleanup."
           warn "A local process is still listening on this port."
-          warn "To auto-kill local processes, run: FORGEPILOT_KILL_LOCAL_PORT_PROCESSES=true ./startup.sh"
+          warn "To auto-kill local processes, run: MANCH_KILL_LOCAL_PORT_PROCESSES=true ./startup.sh"
           warn "Or manually stop that process and retry."
           exit 1
         fi
       else
-        error "Set FORGEPILOT_AUTO_KILL_PORTS=true to auto-resolve, or free port ${port} manually."
+        error "Set MANCH_AUTO_KILL_PORTS=true to auto-resolve, or free port ${port} manually."
         exit 1
       fi
     fi
@@ -117,10 +134,42 @@ check_and_handle_ports() {
   fi
 }
 
-info "ForgePilot startup initiated"
+clean_stale_named_containers() {
+  if [[ "${AUTO_CLEAN_STALE_CONTAINERS}" != "true" ]]; then
+    info "Skipping stale container-name cleanup"
+    return
+  fi
+
+  local found=0
+  for name in "${COMPOSE_CONTAINER_NAMES[@]}"; do
+    if [[ "${name}" == "manch-postgres" && "${PRESERVE_POSTGRES_CONTAINER}" == "true" ]]; then
+      info "Preserving postgres container during stale cleanup"
+      continue
+    fi
+
+    local cid
+    cid="$(docker ps -aq --filter "name=^/${name}$" || true)"
+    if [[ -n "${cid}" ]]; then
+      found=1
+      warn "Removing conflicting container name: ${name}"
+      docker rm -f "${cid}" >/dev/null || true
+    fi
+  done
+
+  if [[ "${found}" -eq 1 ]]; then
+    ok "Stale container-name conflicts cleaned"
+  else
+    ok "No stale container-name conflicts found"
+  fi
+}
+
+info "Manch startup initiated"
 info "Project root: $ROOT_DIR"
 info "Auto-kill Docker port conflicts: ${AUTO_KILL_PORTS}"
 info "Auto-kill local port listeners: ${KILL_LOCAL_PORT_PROCESSES}"
+info "Auto-clean stale named containers: ${AUTO_CLEAN_STALE_CONTAINERS}"
+info "Preserve postgres container on cleanup: ${PRESERVE_POSTGRES_CONTAINER}"
+info "PostgreSQL host port: ${DB_PORT}"
 
 if ! command -v docker >/dev/null 2>&1; then
   error "Docker CLI not found. Install Docker Desktop first."
@@ -129,7 +178,7 @@ fi
 
 ok "Docker CLI detected"
 
-step "1/6" "Checking Docker daemon"
+step "1/7" "Checking Docker daemon"
 
 if ! docker info >/dev/null 2>&1; then
   error "Docker daemon is not running."
@@ -140,7 +189,7 @@ fi
 
 ok "Docker daemon is running"
 
-step "2/6" "Validating docker compose configuration"
+step "2/7" "Validating docker compose configuration"
 if docker compose config >/dev/null; then
   ok "docker-compose configuration is valid"
 else
@@ -148,29 +197,33 @@ else
   exit 1
 fi
 
-step "3/6" "Checking and resolving port conflicts"
+step "3/7" "Checking and resolving port conflicts"
 check_and_handle_ports
 
-step "4/6" "Building and starting services"
+step "4/7" "Cleaning stale container-name conflicts"
+clean_stale_named_containers
+
+step "5/7" "Building and starting services"
 info "This may take longer on first run while images are built"
 docker compose up -d --build
 ok "Containers started"
 
-step "5/6" "Current container status"
+step "6/7" "Current container status"
 docker compose ps
 
-step "6/6" "Health check hints"
+step "7/7" "Health check hints"
 info "Give services ~10-30 seconds on first startup, then check:"
-echo "  - curl http://localhost:3000/health"
-echo "  - curl http://localhost:8080/api/v1/health"
+echo "  - curl http://localhost:3201/health"
+echo "  - curl http://localhost:8212/api/v1/health"
 
 echo
-ok "ForgePilot startup complete"
-echo "Frontend      : http://localhost:4200"
-echo "Backend Docs  : http://localhost:8080/docs"
-echo "Backend Health: http://localhost:8080/api/v1/health"
-echo "Event Stream  : http://localhost:8080/api/v1/events/stream"
-echo "OpenSandbox   : http://localhost:3000/health"
-echo "RabbitMQ UI   : http://localhost:15672 (forgepilot / forgepilot_secret)"
+ok "Manch startup complete"
+echo "Frontend      : http://localhost:4401"
+echo "Backend Docs  : http://localhost:8212/docs"
+echo "Backend Health: http://localhost:8212/api/v1/health"
+echo "Event Stream  : http://localhost:8212/api/v1/events/stream"
+echo "OpenSandbox   : http://localhost:3201/health"
+echo "RabbitMQ UI   : http://localhost:15899 (manch / manch_secret)"
+echo "PostgreSQL    : localhost:${DB_PORT}"
 echo
 info "To stop services: docker compose down"
