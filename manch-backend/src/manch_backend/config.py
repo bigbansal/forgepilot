@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     # In Docker the backend env overrides opensandbox_base_url to the internal hostname,
     # so this separate field keeps the user-facing URL correct.
     opensandbox_public_url: str = "http://localhost:3000"
+    public_base_url: str = "http://localhost:8212"
     opensandbox_api_key: str = ""
     opensandbox_image_uri: str = "manch/sandbox-runtime:local"
     opensandbox_timeout_seconds: int = 1800
@@ -42,6 +43,14 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production-use-openssl-rand-hex-32"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
+
+    # Telegram bot integration
+    telegram_bot_token: str = ""  # MANCH_TELEGRAM_BOT_TOKEN
+
+    # WhatsApp Cloud API integration
+    whatsapp_token: str = ""          # MANCH_WHATSAPP_TOKEN (permanent access token)
+    whatsapp_verify_token: str = "manch-verify"  # MANCH_WHATSAPP_VERIFY_TOKEN
+    whatsapp_phone_number_id: str = ""  # MANCH_WHATSAPP_PHONE_NUMBER_ID
 
 
 settings = Settings()

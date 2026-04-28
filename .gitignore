@@ -43,12 +43,12 @@ coverage/
 .pnpm-store/
 
 # Frontend build output
-forgepilot-frontend/dist/
-forgepilot-frontend/.angular/
+manch-frontend/dist/
+manch-frontend/.angular/
 
 # Python build output
-forgepilot-backend/dist/
-forgepilot-backend/build/
+manch-backend/dist/
+manch-backend/build/
 
 # Sandbox / runtime temp files
 *.pid

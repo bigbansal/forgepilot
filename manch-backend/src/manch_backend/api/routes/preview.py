@@ -14,11 +14,12 @@ from __future__ import annotations
 import re
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.security.utils import get_authorization_scheme_param
 from sqlalchemy import select
 
 from manch_backend.config import settings
-from manch_backend.core.deps import get_current_user
+from manch_backend.core.deps import AuthContext, get_user_from_token
 from manch_backend.db.models import PortMappingRecord, SessionRecord, UserRecord
 from manch_backend.db.session import SessionLocal
 from manch_backend.models import TaskStatus
@@ -33,6 +34,20 @@ _BASE_HREF_RE = re.compile(
     rb'(<base\s+href=["\'])([^"\']*?)(["\'])',
     re.IGNORECASE,
 )
+
+
+def get_preview_user(request: Request, token: str | None = Query(None)) -> AuthContext:
+    """Authenticate preview requests via bearer header or query token.
+
+    Query token support allows links opened directly in the browser to work
+    from the authenticated frontend session.
+    """
+    auth_header = request.headers.get("authorization")
+    scheme, credentials = get_authorization_scheme_param(auth_header)
+    raw_token = credentials if scheme.lower() == "bearer" and credentials else token
+    if not raw_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return get_user_from_token(raw_token)
 
 
 def _resolve_sandbox_session_id(
@@ -88,9 +103,10 @@ async def _proxy(port: int, path: str, request: Request) -> Response:
     if path:
         upstream_url += f"/{path}"
 
-    # Forward query params (minus our own 'task_id' helper)
+    # Forward query params (minus our own helpers)
     params = dict(request.query_params)
     params.pop("task_id", None)
+    params.pop("token", None)
 
     # Forward body for non-GET methods
     body = await request.body() if request.method in ("POST", "PUT", "PATCH") else None
@@ -109,12 +125,33 @@ async def _proxy(port: int, path: str, request: Request) -> Response:
             content=body,
             headers=forward_headers,
         )
-    except httpx.ConnectError:
+    except (httpx.ConnectError, httpx.ConnectTimeout):
         raise HTTPException(
             status_code=502,
             detail=f"Cannot reach sandbox service on port {port}. "
-                   "The server may not be running inside the sandbox.",
+                   "The sandbox may have expired or the server is not running. "
+                   "Please create a new task to restart the application.",
         )
+
+    # OpenSandbox returns JSON errors when the sandbox container is gone.
+    # Detect those and return a friendly message instead of the raw error.
+    if upstream_resp.status_code >= 400:
+        ct = upstream_resp.headers.get("content-type", "")
+        if "json" in ct:
+            try:
+                body_json = upstream_resp.json()
+                msg = body_json.get("message", "") or body_json.get("detail", "")
+                if "connect" in msg.lower() or "sandbox" in msg.lower() or "not found" in msg.lower():
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"The sandbox for port {port} is no longer available. "
+                               "It may have expired after the 30-minute timeout. "
+                               "Please create a new task to restart the application.",
+                    )
+            except HTTPException:
+                raise
+            except Exception:
+                pass  # Fall through to normal response passthrough
 
     # Build response — pass through status, headers, and body
     excluded_headers = {"transfer-encoding", "content-encoding", "content-length"}
@@ -147,30 +184,30 @@ async def _proxy(port: int, path: str, request: Request) -> Response:
 
 
 @router.get("/{port}")
-async def preview_root(port: int, request: Request, _user: UserRecord = Depends(get_current_user)) -> Response:
+async def preview_root(port: int, request: Request, _user: UserRecord = Depends(get_preview_user)) -> Response:
     return await _proxy(port, "", request)
 
 
 @router.get("/{port}/{full_path:path}")
-async def preview_path_get(port: int, full_path: str, request: Request, _user: UserRecord = Depends(get_current_user)) -> Response:
+async def preview_path_get(port: int, full_path: str, request: Request, _user: UserRecord = Depends(get_preview_user)) -> Response:
     return await _proxy(port, full_path, request)
 
 
 @router.post("/{port}/{full_path:path}")
-async def preview_path_post(port: int, full_path: str, request: Request, _user: UserRecord = Depends(get_current_user)) -> Response:
+async def preview_path_post(port: int, full_path: str, request: Request, _user: UserRecord = Depends(get_preview_user)) -> Response:
     return await _proxy(port, full_path, request)
 
 
 @router.put("/{port}/{full_path:path}")
-async def preview_path_put(port: int, full_path: str, request: Request, _user: UserRecord = Depends(get_current_user)) -> Response:
+async def preview_path_put(port: int, full_path: str, request: Request, _user: UserRecord = Depends(get_preview_user)) -> Response:
     return await _proxy(port, full_path, request)
 
 
 @router.patch("/{port}/{full_path:path}")
-async def preview_path_patch(port: int, full_path: str, request: Request, _user: UserRecord = Depends(get_current_user)) -> Response:
+async def preview_path_patch(port: int, full_path: str, request: Request, _user: UserRecord = Depends(get_preview_user)) -> Response:
     return await _proxy(port, full_path, request)
 
 
 @router.delete("/{port}/{full_path:path}")
-async def preview_path_delete(port: int, full_path: str, request: Request, _user: UserRecord = Depends(get_current_user)) -> Response:
+async def preview_path_delete(port: int, full_path: str, request: Request, _user: UserRecord = Depends(get_preview_user)) -> Response:
     return await _proxy(port, full_path, request)

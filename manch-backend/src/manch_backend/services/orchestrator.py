@@ -159,8 +159,8 @@ class OrchestratorService:
                 )
 
                 # Clean preview URL — hides sandbox session IDs from the user.
-                # Pattern: http://localhost:8080/api/v1/preview/{port}
-                preview_base = f"http://localhost:{settings.port}{settings.api_prefix}/preview"
+                # Pattern: http://localhost:8212/api/v1/preview/{port}
+                preview_base = f"{settings.public_base_url.rstrip('/')}{settings.api_prefix}/preview"
 
                 # Also keep the full opensandbox proxy base for internal metadata
                 public_proxy_base = (
@@ -718,35 +718,72 @@ class OrchestratorService:
         Scan common directories for server entry-points that reference each
         detected port and re-launch them with ``nohup … & disown`` so they
         survive future shell exits.
+
+        Each port gets its own ``run_command`` call (separate shell session)
+        so that the launched server is **not** a child of a shell that will
+        exit — ``nohup`` + ``disown`` ensure it survives.
         """
+        import logging
+        log = logging.getLogger(__name__)
+
         for port in ports:
-            # Build a small shell script that:
-            # 1. Finds the first JS/TS/PY file referencing this port
-            # 2. Determines the runtime (node vs python)
-            # 3. Starts it with nohup + disown
-            # 4. Waits briefly and verifies the port is up
-            restart_script = (
-                f'SERVER_FILE=$(grep -rl "port.*{port}\\|{port}" '
-                f'/app/ /my-app/ /root/ /home/ 2>/dev/null '
-                f'| grep -E "\\.(js|ts|py)$" | head -1); '
-                f'if [ -n "$SERVER_FILE" ]; then '
-                f'DIR=$(dirname "$SERVER_FILE"); cd "$DIR"; '
-                f'if [ -f package.json ]; then '
-                f'nohup node "$SERVER_FILE" > /tmp/server-{port}.log 2>&1 & disown; '
-                f'elif echo "$SERVER_FILE" | grep -q ".py$"; then '
-                f'nohup python3 "$SERVER_FILE" > /tmp/server-{port}.log 2>&1 & disown; '
-                f'fi; fi; '
-                f'sleep 1; '
-                f'curl -s http://localhost:{port} > /dev/null && '
-                f'echo "Server on port {port}: RUNNING" || '
-                f'echo "Server on port {port}: NOT_RUNNING"'
+            # Write a helper script to /tmp so we avoid complex shell quoting.
+            # The script:
+            #   1. Finds the first .js/.ts/.py file mentioning this port
+            #   2. Detects the runtime (node / python+uvicorn / raw python)
+            #   3. Launches with nohup + setsid + disown
+            #   4. Waits briefly and verifies the port is listening
+            helper_script = (
+                f'cat > /tmp/_restart_{port}.sh << \'RESTART_EOF\'\n'
+                f'#!/bin/bash\n'
+                f'PORT={port}\n'
+                f'SERVER_FILE=$(grep -rl "$PORT" /app/ /my-app/ /root/ /home/ /workspace/ 2>/dev/null '
+                f'| grep -E "\\.(js|ts|py)$" | head -1)\n'
+                f'if [ -z "$SERVER_FILE" ]; then\n'
+                f'  echo "No server file found for port $PORT"\n'
+                f'  exit 0\n'
+                f'fi\n'
+                f'DIR=$(dirname "$SERVER_FILE")\n'
+                f'cd "$DIR"\n'
+                f'echo "Restarting $SERVER_FILE for port $PORT"\n'
+                f'if [ -f package.json ]; then\n'
+                f'  nohup node "$SERVER_FILE" > /tmp/server-$PORT.log 2>&1 &\n'
+                f'  disown\n'
+                f'elif echo "$SERVER_FILE" | grep -q ".py$"; then\n'
+                f'  PY_BIN=python3\n'
+                f'  [ -x "$DIR/.venv/bin/python" ] && PY_BIN="$DIR/.venv/bin/python"\n'
+                f'  MODULE_NAME=$(basename "$SERVER_FILE" .py)\n'
+                f'  if grep -q "FastAPI\\|fastapi" "$SERVER_FILE"; then\n'
+                f'    nohup "$PY_BIN" -m uvicorn "$MODULE_NAME:app" --host 0.0.0.0 --port $PORT > /tmp/server-$PORT.log 2>&1 &\n'
+                f'    disown\n'
+                f'  elif [ -x "$DIR/.venv/bin/uvicorn" ]; then\n'
+                f'    nohup "$DIR/.venv/bin/uvicorn" "$MODULE_NAME:app" --host 0.0.0.0 --port $PORT > /tmp/server-$PORT.log 2>&1 &\n'
+                f'    disown\n'
+                f'  else\n'
+                f'    nohup "$PY_BIN" "$SERVER_FILE" > /tmp/server-$PORT.log 2>&1 &\n'
+                f'    disown\n'
+                f'  fi\n'
+                f'fi\n'
+                f'sleep 3\n'
+                f'if python3 -c "import socket; s=socket.socket(); s.settimeout(2); s.connect((\'127.0.0.1\', $PORT)); s.close()" 2>/dev/null; then\n'
+                f'  echo "Server on port $PORT: RUNNING"\n'
+                f'else\n'
+                f'  echo "Server on port $PORT: NOT_RUNNING"\n'
+                f'  cat /tmp/server-$PORT.log 2>/dev/null || true\n'
+                f'fi\n'
+                f'RESTART_EOF\n'
+                f'chmod +x /tmp/_restart_{port}.sh && bash /tmp/_restart_{port}.sh'
             )
             try:
-                self.sandbox.run_command(
-                    sandbox_session_id, restart_script, keep_alive=True,
+                result = self.sandbox.run_command(
+                    sandbox_session_id, helper_script, keep_alive=True,
                 )
-            except Exception:  # noqa: BLE001
-                pass  # best-effort; don't fail the task
+                log.info(
+                    "restart_sandbox_servers port=%s stdout=%s stderr=%s exit=%s",
+                    port, result.stdout[:500], result.stderr[:200], result.exit_code,
+                )
+            except Exception as exc:  # noqa: BLE001
+                log.warning("Failed to restart server on port %s: %s", port, exc)
 
     @staticmethod
     def _emit(event_type: str, payload: dict, user_id: str | None = None, team_id: str | None = None) -> None:

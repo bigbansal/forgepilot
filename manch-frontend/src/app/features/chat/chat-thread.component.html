@@ -89,7 +89,7 @@
             <time class="msg-time">{{ message.createdAt | date:'shortTime' }}</time>
           </div>
           <div class="msg-content">
-            <pre class="msg-pre">{{ message.content }}</pre>
+            <div class="msg-pre" [innerHTML]="assistantMessageHtml(message.content)"></div>
           </div>
         </div>
 

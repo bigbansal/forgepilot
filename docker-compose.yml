@@ -93,6 +93,7 @@ services:
       MANCH_HOST: 0.0.0.0
       MANCH_PORT: 8080
       MANCH_API_PREFIX: /api/v1
+      MANCH_PUBLIC_BASE_URL: http://localhost:8212
       MANCH_DATABASE_URL: postgresql+psycopg://manch:manch_secret@postgres:5432/manch
       MANCH_OPENSANDBOX_BASE_URL: http://opensandbox:8080
       MANCH_OPENSANDBOX_IMAGE_URI: manch/sandbox-runtime:local
@@ -118,3 +119,7 @@ volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
+
+networks:
+  default:
+    name: manch_default

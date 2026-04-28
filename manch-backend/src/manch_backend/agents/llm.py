@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 # ── Model routing ────────────────────────────────────
 _MODEL_MAP: dict[ModelClass, str] = {
     ModelClass.FAST: "gemini-2.0-flash",
-    ModelClass.BALANCED: "gemini-2.5-flash-preview-05-20",
-    ModelClass.REASONING: "gemini-2.5-pro-preview-05-06",
+    ModelClass.BALANCED: "gemini-2.5-flash",
+    ModelClass.REASONING: "gemini-2.5-pro",
 }
 
 

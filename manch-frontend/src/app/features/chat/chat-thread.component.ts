@@ -48,6 +48,8 @@ import { ApprovalRequest } from '../../core/models/approval.model';
 import { WebSocketService } from '../../core/services/websocket.service';
 import { ChatService } from '../../core/services/chat.service';
 import { ApprovalService } from '../../core/services/approval.service';
+import { ApiBaseService } from '../../core/services/api-base.service';
+import { AuthService } from '../../core/services/auth.service';
 import { RepoService, RepoSummary } from '../../core/services/repo.service';
 import { SkillService } from '../../core/services/skill.service';
 import { TypingIndicatorComponent } from '../../shared/components/typing-indicator/typing-indicator.component';
@@ -70,6 +72,8 @@ export class ChatThreadComponent implements OnInit, OnDestroy, AfterViewChecked 
   private readonly chatService = inject(ChatService);
   private readonly wsService = inject(WebSocketService);
   private readonly approvalService = inject(ApprovalService);
+  private readonly apiBase = inject(ApiBaseService);
+  private readonly auth = inject(AuthService);
   private readonly repoService = inject(RepoService);
   private readonly skillService = inject(SkillService);
   private readonly toasts = inject(ToastStore);
@@ -118,6 +122,40 @@ export class ChatThreadComponent implements OnInit, OnDestroy, AfterViewChecked 
   private pollingIntervalId?: number;
   private shouldScrollToBottom = false;
   private currentSubscribedTaskId: string | null = null;
+
+  assistantMessageHtml(content: string): string {
+    const escaped = this.escapeHtml(content);
+    const linked = escaped.replace(/https?:\/\/[^\s<]+/g, (rawUrl) => {
+      const href = this.decoratePreviewUrl(rawUrl);
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${rawUrl}</a>`;
+    });
+    return linked.replace(/\n/g, '<br>');
+  }
+
+  private decoratePreviewUrl(url: string): string {
+    const normalizedUrl = url.replace(
+      /^http:\/\/localhost:8080\/api\/v1\/preview\//,
+      `${this.apiBase.baseUrl}/preview/`,
+    );
+    if (!normalizedUrl.startsWith(`${this.apiBase.baseUrl}/preview/`)) {
+      return normalizedUrl;
+    }
+    const token = this.auth.accessToken();
+    if (!token) {
+      return normalizedUrl;
+    }
+    const separator = normalizedUrl.includes('?') ? '&' : '?';
+    return `${normalizedUrl}${separator}token=${encodeURIComponent(token)}`;
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
   ngOnInit(): void {
     void this.initializeConversations();
