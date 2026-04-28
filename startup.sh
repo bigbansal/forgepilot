@@ -223,7 +223,7 @@ echo "Backend Docs  : http://localhost:8212/docs"
 echo "Backend Health: http://localhost:8212/api/v1/health"
 echo "Event Stream  : http://localhost:8212/api/v1/events/stream"
 echo "OpenSandbox   : http://localhost:3201/health"
-echo "RabbitMQ UI   : http://localhost:15899 (manch / manch_secret)"
+echo "RabbitMQ UI   : http://localhost:15899 (user: ${MANCH_RABBITMQ_USER:-manch})"
 echo "PostgreSQL    : localhost:${DB_PORT}"
 echo
 info "To stop services: docker compose down"

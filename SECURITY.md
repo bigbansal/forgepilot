@@ -34,3 +34,9 @@ We aim to acknowledge reports within **48 hours** and provide an initial assessm
 - **psycopg** is LGPL-3.0 licensed — used as a library dependency (not modified/redistributed).
 - Dev-default passwords in `docker-compose.yml` (`manch_secret`) are for local development only. **Change them in production.**
 - The sandbox runtime mounts `/var/run/docker.sock` for container orchestration — **restrict access in production environments.**
+
+## Before Making The Repo Public
+
+- Follow `docs/public-release-checklist.md` end-to-end.
+- If any secret was committed historically, rotate it and rewrite git history before publication.
+- Enable GitHub Secret Scanning + Push Protection on the repository.

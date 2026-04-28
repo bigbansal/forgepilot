@@ -42,8 +42,10 @@ Angular 19 UI  ─────►  FastAPI Backend  ─────►  OpenSand
 ```bash
 git clone https://github.com/bigbansal/manch.git
 cd manch
+cp .env.example .env
 cp manch-backend/.env.example manch-backend/.env
-# Edit .env and add at least one AI provider API key
+# Optional: edit root .env to override docker-compose credentials/ports
+# Edit manch-backend/.env and add at least one AI provider API key
 ./startup.sh
 ```
 
@@ -130,6 +132,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, code style, and P
 ## Security
 
 Report vulnerabilities privately. See [SECURITY.md](SECURITY.md).
+
+Before making your fork/repo public, run through [docs/public-release-checklist.md](docs/public-release-checklist.md).
 
 ## License
 

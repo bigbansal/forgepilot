@@ -3,9 +3,9 @@ services:
     image: postgres:16-alpine
     container_name: manch-postgres
     environment:
-      POSTGRES_DB: manch
-      POSTGRES_USER: manch
-      POSTGRES_PASSWORD: manch_secret
+      POSTGRES_DB: ${MANCH_POSTGRES_DB:-manch}
+      POSTGRES_USER: ${MANCH_POSTGRES_USER:-manch}
+      POSTGRES_PASSWORD: ${MANCH_POSTGRES_PASSWORD:-manch_secret}
     ports:
       - "${MANCH_DB_PORT:-5545}:5432"
     volumes:
@@ -23,8 +23,8 @@ services:
       - "5672:5672"
       - "15899:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: manch
-      RABBITMQ_DEFAULT_PASS: manch_secret
+      RABBITMQ_DEFAULT_USER: ${MANCH_RABBITMQ_USER:-manch}
+      RABBITMQ_DEFAULT_PASS: ${MANCH_RABBITMQ_PASSWORD:-manch_secret}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -94,7 +94,7 @@ services:
       MANCH_PORT: 8080
       MANCH_API_PREFIX: /api/v1
       MANCH_PUBLIC_BASE_URL: http://localhost:8212
-      MANCH_DATABASE_URL: postgresql+psycopg://manch:manch_secret@postgres:5432/manch
+      MANCH_DATABASE_URL: postgresql+psycopg://${MANCH_POSTGRES_USER:-manch}:${MANCH_POSTGRES_PASSWORD:-manch_secret}@postgres:5432/${MANCH_POSTGRES_DB:-manch}
       MANCH_OPENSANDBOX_BASE_URL: http://opensandbox:8080
       MANCH_OPENSANDBOX_IMAGE_URI: manch/sandbox-runtime:local
       MANCH_OPENSANDBOX_USE_SERVER_PROXY: "true"
